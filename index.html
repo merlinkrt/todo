@@ -3,31 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <title>To-Do List with Spotify</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="styles.css">
+    <!-- Load Spotify SDK first -->
     <script src="https://sdk.scdn.co/spotify-player.js"></script>
 </head>
 <body>
     <div class="container">
         <h1>📝 My To-Do List</h1>
-        <input type="text" id="new-task" placeholder="New Task..." />
+        <input type="text" id="new-task" placeholder="New Task..." autocomplete="off">
         <button id="add-task">Add</button>
         <ul id="task-list"></ul>
     </div>
 
     <div id="spotify-widget">
         <h3>Current Song</h3>
-        <p id="current-track" class="loading">Connecting to Spotify...</p>
+        <div id="current-track">Connecting to Spotify...</div> <!-- Changed from <p> to <div> -->
     </div>
 
     <div id="spotify-auth">
-        <!-- In index.html, update the login link with these scopes: -->
-        <a href="https://accounts.spotify.com/authorize?client_id=60ae37052d3843859a2cb52aab683269&response_type=token&redirect_uri=https://merlinkrt.github.io/todo/&scope=streaming%20user-read-email%20user-read-private%20user-read-playback-state%20user-modify-playback-state%20user-read-currently-playing">
-        Log into Spotify
+        <!-- Updated with proper spacing in URL parameters -->
+        <a href="https://accounts.spotify.com/authorize?client_id=60ae37052d3843859a2cb52aab683269&response_type=token&redirect_uri=https://merlinkrt.github.io/todo/&scope=streaming%20user-read-email%20user-read-private%20user-read-playback-state%20user-modify-playback-state%20user-read-currently-playing"
+           id="spotify-login"
+           class="spotify-btn">
+            Log into Spotify
         </a>
-        <button id="spotify-logout" style="display: none;">Logout from Spotify</button>
+        <button id="spotify-logout" class="spotify-btn" style="display:none;">Logout from Spotify</button>
     </div>
 
+    <!-- Script at bottom for better loading performance -->
     <script src="script.js"></script>
 </body>
 </html>
-

@@ -1,266 +1,165 @@
+// ======================
+// MAIN INITIALIZATION
+// ======================
 document.addEventListener('DOMContentLoaded', function() {
-    // To-Do List functionality
-    document.getElementById('add-task').addEventListener('click', addTask);
-    document.getElementById('new-task').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') addTask();
-    });
-
-    // Spotify Integration
-    checkForSpotifyToken();
-
-    // Logout functionality
-    document.getElementById('spotify-logout').addEventListener('click', logoutFromSpotify);
+    console.log("DOM fully loaded");
+    initTodoList();
+    initSpotify();
 });
 
-// Constants
-const SPOTIFY_CONNECTION_TIMEOUT = 10000; // 10 seconds
-let connectionTimer;
+// ======================
+// SPOTIFY INTEGRATION
+// ======================
 
-/* ====================== */
-/* SPOTIFY AUTHENTICATION */
-/* ====================== */
+// Global SDK ready handler (required by Spotify)
+window.onSpotifyWebPlaybackSDKReady = () => {
+    console.log("Spotify Web Playback SDK ready!");
+    const token = getValidToken();
+    if (token) createPlayer(token);
+};
 
-function checkForSpotifyToken() {
-    // Try to get token from URL first (after redirect)
-    let token = getAccessTokenFromURL();
+function initSpotify() {
+    const token = getValidToken();
+    const loginBtn = document.getElementById('spotify-login');
+    const logoutBtn = document.getElementById('spotify-logout');
     
-    // If not in URL, check localStorage
-    if (!token) token = localStorage.getItem('spotify_token');
-    
-    if (token && !isTokenExpired()) {
-        handleSuccessfulLogin(token);
-    } else {
-        if (isTokenExpired()) {
-            updateTrackDisplay('Session expired - please log in again');
-            logoutFromSpotify();
-        } else {
-            updateTrackDisplay('Please log in to Spotify');
-        }
+    if (!loginBtn || !logoutBtn) {
+        console.error("Spotify auth buttons not found");
+        return;
     }
-}
-
-function getAccessTokenFromURL() {
-    const hash = window.location.hash.substr(1);
-    if (!hash) return null;
-    
-    const params = new URLSearchParams(hash);
-    const token = params.get('access_token');
-    const expiresIn = parseInt(params.get('expires_in')) || 3600;
 
     if (token) {
-        // Store token and expiration
-        localStorage.setItem('spotify_token', token);
-        localStorage.setItem('spotify_token_expires', Date.now() + expiresIn * 1000);
+        loginBtn.style.display = 'none';
+        logoutBtn.style.display = 'block';
+        updateTrackDisplay('Connecting to Spotify...');
         
-        // Clean URL
-        if (window.history.replaceState) {
-            window.history.replaceState(null, null, window.location.pathname);
+        if (window.Spotify) {
+            createPlayer(token);
+        } else {
+            console.warn("Spotify SDK not loaded yet - waiting for onSpotifyWebPlaybackSDKReady");
         }
-        return token;
-    }
-    return null;
-}
-
-function isTokenExpired() {
-    const expiresAt = localStorage.getItem('spotify_token_expires');
-    return !expiresAt || Date.now() > parseInt(expiresAt);
-}
-
-function handleSuccessfulLogin(token) {
-    document.getElementById('spotify-login').style.display = 'none';
-    document.getElementById('spotify-logout').style.display = 'block';
-    updateTrackDisplay('Connecting to Spotify...');
-
-    // Initialize player when SDK is ready
-    if (window.Spotify) {
-        createPlayer(token);
     } else {
-        window.onSpotifyWebPlaybackSDKReady = () => createPlayer(token);
-        setTimeout(checkSDKLoad, 5000);
+        loginBtn.style.display = 'block';
+        logoutBtn.style.display = 'none';
+        updateTrackDisplay('Please log in to Spotify');
     }
 }
 
-function checkSDKLoad() {
-    if (!window.Spotify) {
-        updateTrackDisplay('Error: Spotify SDK failed to load. Refresh page.');
+function getValidToken() {
+    // Check URL hash first (after redirect)
+    const hash = window.location.hash.substring(1);
+    if (hash) {
+        const params = new URLSearchParams(hash);
+        const token = params.get('access_token');
+        if (token) {
+            localStorage.setItem('spotify_token', token);
+            window.history.replaceState(null, null, ' '); // Clean URL
+            return token;
+        }
     }
+    // Fallback to localStorage
+    return localStorage.getItem('spotify_token');
 }
-
-/* ================== */
-/* SPOTIFY PLAYER API */
-/* ================== */
 
 function createPlayer(token) {
-    // Start connection timeout
-    connectionTimer = setTimeout(() => {
-        updateTrackDisplay('Timeout: Make sure Spotify is open on another device');
-    }, SPOTIFY_CONNECTION_TIMEOUT);
-
+    console.log("Creating Spotify player...");
+    
     // Configure DRM
-    configureDRM();
+    if (window.spotifyConfig) {
+        window.spotifyConfig.setConfig({
+            encryption: { robustness: 'SW_SECURE_CRYPTO' }
+        });
+    }
 
     const player = new Spotify.Player({
         name: 'To-Do List Player',
-        getOAuthToken: cb => {
-            if (isTokenExpired()) {
-                updateTrackDisplay('Session expired - please log in again');
-                logoutFromSpotify();
-            } else {
-                cb(token);
-            }
-        },
-        volume: 0.5,
-        enableMediaSession: true
+        getOAuthToken: cb => cb(token),
+        volume: 0.5
     });
 
-    // Error Handlers
-    player.addListener('initialization_error', ({ message }) => {
-        clearTimeout(connectionTimer);
-        console.error('Initialization Error:', message);
-        updateTrackDisplay('Player error - try refreshing');
-    });
-    
-    player.addListener('authentication_error', ({ message }) => {
-        clearTimeout(connectionTimer);
-        console.error('Authentication Error:', message);
-        handleAuthError(message);
+    // Connection timeout (15 seconds)
+    const connectionTimeout = setTimeout(() => {
+        updateTrackDisplay('⚠️ Connect timeout: Open Spotify on another device');
+    }, 15000);
+
+    // Event listeners
+    player.addListener('ready', ({ device_id }) => {
+        clearTimeout(connectionTimeout);
+        console.log("Connected to Spotify as device:", device_id);
+        updateTrackDisplay('✅ Connected - play from any Spotify app');
+        checkCurrentPlayback(token);
     });
 
-    player.addListener('account_error', ({ message }) => {
-        clearTimeout(connectionTimer);
-        console.error('Account Error:', message);
-        updateTrackDisplay('Premium account required');
-    });
-
-    player.addListener('playback_error', ({ message }) => {
-        console.error('Playback Error:', message);
-        updateTrackDisplay('Playback error: ' + message);
-    });
-
-    // State Handlers
     player.addListener('player_state_changed', state => {
-        clearTimeout(connectionTimer);
-        if (!state) {
-            updateTrackDisplay('No song playing - start playback from another device');
-            return;
-        }
-        
-        const { current_track } = state.track_window;
-        if (current_track) {
+        if (!state) return;
+        const track = state.track_window.current_track;
+        if (track) {
             updateTrackDisplay(
-                `${current_track.name} by ${current_track.artists[0].name}`,
-                current_track.album.images[0]?.url
+                `🎵 ${track.name} by ${track.artists[0].name}`,
+                track.album.images[0]?.url
             );
         }
     });
 
-    player.addListener('ready', ({ device_id }) => {
-        clearTimeout(connectionTimer);
-        console.log('Connected as device:', device_id);
-        updateTrackDisplay('Connected! Play a song from any Spotify app');
-        checkCurrentPlayback(token);
-    });
-
-    player.addListener('not_ready', ({ device_id }) => {
-        clearTimeout(connectionTimer);
-        console.log('Device ID not ready:', device_id);
-        updateTrackDisplay('Paused - play something from another device');
+    player.addListener('authentication_error', ({ message }) => {
+        clearTimeout(connectionTimeout);
+        console.error("Auth error:", message);
+        if (message.includes('PREMIUM_REQUIRED')) {
+            updateTrackDisplay('🔒 Premium account required');
+        } else {
+            updateTrackDisplay('🔒 Login expired - reconnect');
+        }
+        logoutFromSpotify();
     });
 
     player.connect().then(success => {
         if (!success) {
-            clearTimeout(connectionTimer);
-            updateTrackDisplay('Connection failed. Try refreshing.');
+            updateTrackDisplay('❌ Connection failed - refresh page');
         }
     });
-
-    return player;
-}
-
-function configureDRM() {
-    if (window.spotifyConfig) {
-        try {
-            window.spotifyConfig.setConfig({
-                encryption: {
-                    robustness: 'SW_SECURE_CRYPTO'
-                }
-            });
-            console.log('DRM configured successfully');
-        } catch (e) {
-            console.warn('DRM configuration failed:', e);
-        }
-    } else {
-        console.warn('spotifyConfig not available - DRM not configured');
-    }
-}
-
-function handleAuthError(message) {
-    if (message.includes('scope') || message.includes('403')) {
-        updateTrackDisplay('Missing permissions - please log in again');
-        document.getElementById('spotify-login').style.display = 'block';
-    } else if (message.includes('PREMIUM_REQUIRED')) {
-        updateTrackDisplay('Spotify Premium account required');
-    } else {
-        updateTrackDisplay('Login error - please try again');
-    }
-    logoutFromSpotify();
 }
 
 function checkCurrentPlayback(token) {
     fetch('https://api.spotify.com/v1/me/player', {
         headers: { 'Authorization': `Bearer ${token}` }
     })
-    .then(response => {
-        if (!response.ok) throw new Error('Playback check failed');
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
         if (data?.is_playing && data?.item) {
             updateTrackDisplay(
-                `${data.item.name} by ${data.item.artists[0].name}`,
+                `▶️ ${data.item.name} by ${data.item.artists[0].name}`,
                 data.item.album.images[0]?.url
             );
         }
     })
-    .catch(error => {
-        console.log('Playback check error:', error);
-    });
+    .catch(console.error);
 }
-
-/* ================== */
-/* UTILITY FUNCTIONS */
-/* ================== */
 
 function logoutFromSpotify() {
     localStorage.removeItem('spotify_token');
-    localStorage.removeItem('spotify_token_expires');
     document.getElementById('spotify-login').style.display = 'block';
     document.getElementById('spotify-logout').style.display = 'none';
     updateTrackDisplay('Logged out from Spotify');
 }
 
-function updateTrackDisplay(text, imageUrl) {
-    const trackElement = document.getElementById('current-track');
-    trackElement.innerHTML = '';
-    
-    const textNode = document.createElement('div');
-    textNode.textContent = text;
-    trackElement.appendChild(textNode);
-    
-    if (imageUrl) {
-        const img = document.createElement('img');
-        img.src = imageUrl;
-        img.alt = 'Album art';
-        img.style.maxWidth = '100px';
-        img.style.marginTop = '10px';
-        img.style.borderRadius = '4px';
-        trackElement.appendChild(img);
-    }
-}
+// ======================
+// TO-DO LIST FUNCTIONALITY
+// ======================
 
-/* ================== */
-/* TO-DO LIST FUNCTIONS */
-/* ================== */
+function initTodoList() {
+    const addBtn = document.getElementById('add-task');
+    const input = document.getElementById('new-task');
+    
+    if (!addBtn || !input) {
+        console.error("To-Do list elements missing");
+        return;
+    }
+
+    addBtn.addEventListener('click', addTask);
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addTask();
+    });
+}
 
 function addTask() {
     const input = document.getElementById('new-task');
@@ -269,11 +168,11 @@ function addTask() {
 
     const li = document.createElement('li');
     li.textContent = taskText;
-
+    
     li.addEventListener('click', () => {
         li.classList.toggle('completed');
     });
-
+    
     li.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         li.remove();
@@ -281,4 +180,28 @@ function addTask() {
 
     document.getElementById('task-list').appendChild(li);
     input.value = '';
+}
+
+// ======================
+// UTILITY FUNCTIONS
+// ======================
+
+function updateTrackDisplay(text, imageUrl) {
+    const element = document.getElementById('current-track');
+    if (!element) return;
+    
+    element.innerHTML = '';
+    const textNode = document.createElement('div');
+    textNode.textContent = text;
+    element.appendChild(textNode);
+    
+    if (imageUrl) {
+        const img = document.createElement('img');
+        img.src = imageUrl;
+        img.alt = 'Album art';
+        img.style.maxWidth = '100px';
+        img.style.marginTop = '10px';
+        img.style.borderRadius = '4px';
+        element.appendChild(img);
+    }
 }
