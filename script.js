@@ -1,8 +1,8 @@
-// Funktion, um eine neue Aufgabe hinzuzufügen
+// Funktion zum Hinzufügen einer Aufgabe
 function addTask() {
     const input = document.getElementById('new-task');
-    const taskText = input.value.trim(); // Leerzeichen entfernen
-    if (taskText === "") return; // keine leere Aufgabe
+    const taskText = input.value.trim(); // Entferne Leerzeichen
+    if (taskText === "") return; // Keine leere Aufgabe hinzufügen
 
     const li = document.createElement('li');
     li.textContent = taskText;
@@ -14,8 +14,8 @@ function addTask() {
 
     // Right-click to delete the task
     li.addEventListener('contextmenu', (e) => {
-        e.preventDefault(); 
-        li.remove(); // Löscht
+        e.preventDefault();
+        li.remove();
     });
 
     // Append the new task to the list
@@ -25,19 +25,14 @@ function addTask() {
     input.value = "";
 }
 
-// Spotify Web Playback SDK
+// Spotify Web Playback SDK initialisieren
 window.onSpotifyWebPlaybackSDKReady = () => {
-    const urlParams = new URLSearchParams(window.location.hash.substr(1));
-    const token = urlParams.get('access_token'); // Den Token aus der URL holen
-
+    const token = getAccessToken(); // Erhalte das Token aus der URL
     if (!token) {
-        console.log('Kein Zugangstoken gefunden.');
+        console.log('Kein Zugriffstoken gefunden');
         return;
     }
 
-    console.log('Zugangstoken erhalten:', token);
-
-    // Player Initialisierung
     const player = new Spotify.Player({
         name: 'Spotify Web Playback SDK Player',
         getOAuthToken: cb => { cb(token); },
@@ -51,8 +46,8 @@ window.onSpotifyWebPlaybackSDKReady = () => {
     player.on('playback_error', ({ message }) => { console.error(message); });
 
     player.on('ready', ({ device_id }) => {
-        console.log('Der Web Playback SDK ist bereit!');
-        console.log('Die Geräte-ID ist', device_id);
+        console.log('The Web Playback SDK is ready!');
+        console.log('The device ID is', device_id);
     });
 
     player.on('player_state_changed', state => {
@@ -65,10 +60,23 @@ window.onSpotifyWebPlaybackSDKReady = () => {
     player.connect();
 };
 
-// Event Listener für das Hinzufügen einer Aufgabe
+// Funktion zum Abrufen des Access Tokens aus der URL
+function getAccessToken() {
+    const urlParams = new URLSearchParams(window.location.hash.substr(1));
+    return urlParams.get('access_token'); // Gibt das Access Token zurück
+}
+
+// Wenn ein Token vorhanden ist, wird es benutzt, um die Spotify API zu authentifizieren
+const token = getAccessToken();
+if (token) {
+    console.log('Zugangstoken erhalten:', token);
+    // Hier kannst du das Token für weitere API-Anfragen verwenden
+} else {
+    console.log('Kein Zugangstoken gefunden. Stellen Sie sicher, dass Sie sich bei Spotify anmelden und den Token erhalten.');
+}
+
 document.getElementById('add-task').addEventListener('click', addTask);
 
-// Event Listener für das Hinzufügen einer Aufgabe mit der Enter-Taste
 document.getElementById('new-task').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         addTask();
