@@ -12,6 +12,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('spotify-logout').addEventListener('click', logoutFromSpotify);
 });
 
+// Constants
+const SPOTIFY_CONNECTION_TIMEOUT = 10000; // 10 seconds
+let connectionTimer;
+
 /* ====================== */
 /* SPOTIFY AUTHENTICATION */
 /* ====================== */
@@ -87,7 +91,12 @@ function checkSDKLoad() {
 /* ================== */
 
 function createPlayer(token) {
-    // Configure DRM robustness first
+    // Start connection timeout
+    connectionTimer = setTimeout(() => {
+        updateTrackDisplay('Timeout: Make sure Spotify is open on another device');
+    }, SPOTIFY_CONNECTION_TIMEOUT);
+
+    // Configure DRM
     configureDRM();
 
     const player = new Spotify.Player({
@@ -106,16 +115,19 @@ function createPlayer(token) {
 
     // Error Handlers
     player.addListener('initialization_error', ({ message }) => {
+        clearTimeout(connectionTimer);
         console.error('Initialization Error:', message);
         updateTrackDisplay('Player error - try refreshing');
     });
     
     player.addListener('authentication_error', ({ message }) => {
+        clearTimeout(connectionTimer);
         console.error('Authentication Error:', message);
         handleAuthError(message);
     });
 
     player.addListener('account_error', ({ message }) => {
+        clearTimeout(connectionTimer);
         console.error('Account Error:', message);
         updateTrackDisplay('Premium account required');
     });
@@ -127,8 +139,9 @@ function createPlayer(token) {
 
     // State Handlers
     player.addListener('player_state_changed', state => {
+        clearTimeout(connectionTimer);
         if (!state) {
-            updateTrackDisplay('No song playing');
+            updateTrackDisplay('No song playing - start playback from another device');
             return;
         }
         
@@ -142,14 +155,26 @@ function createPlayer(token) {
     });
 
     player.addListener('ready', ({ device_id }) => {
+        clearTimeout(connectionTimer);
         console.log('Connected as device:', device_id);
+        updateTrackDisplay('Connected! Play a song from any Spotify app');
+        checkCurrentPlayback(token);
+    });
+
+    player.addListener('not_ready', ({ device_id }) => {
+        clearTimeout(connectionTimer);
+        console.log('Device ID not ready:', device_id);
+        updateTrackDisplay('Paused - play something from another device');
     });
 
     player.connect().then(success => {
         if (!success) {
-            updateTrackDisplay('Failed to connect. Open Spotify on another device.');
+            clearTimeout(connectionTimer);
+            updateTrackDisplay('Connection failed. Try refreshing.');
         }
     });
+
+    return player;
 }
 
 function configureDRM() {
@@ -172,12 +197,34 @@ function configureDRM() {
 function handleAuthError(message) {
     if (message.includes('scope') || message.includes('403')) {
         updateTrackDisplay('Missing permissions - please log in again');
-        // Force re-login with correct scopes
         document.getElementById('spotify-login').style.display = 'block';
+    } else if (message.includes('PREMIUM_REQUIRED')) {
+        updateTrackDisplay('Spotify Premium account required');
     } else {
         updateTrackDisplay('Login error - please try again');
     }
     logoutFromSpotify();
+}
+
+function checkCurrentPlayback(token) {
+    fetch('https://api.spotify.com/v1/me/player', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Playback check failed');
+        return response.json();
+    })
+    .then(data => {
+        if (data?.is_playing && data?.item) {
+            updateTrackDisplay(
+                `${data.item.name} by ${data.item.artists[0].name}`,
+                data.item.album.images[0]?.url
+            );
+        }
+    })
+    .catch(error => {
+        console.log('Playback check error:', error);
+    });
 }
 
 /* ================== */
@@ -194,7 +241,7 @@ function logoutFromSpotify() {
 
 function updateTrackDisplay(text, imageUrl) {
     const trackElement = document.getElementById('current-track');
-    trackElement.innerHTML = ''; // Clear previous content
+    trackElement.innerHTML = '';
     
     const textNode = document.createElement('div');
     textNode.textContent = text;
@@ -206,6 +253,7 @@ function updateTrackDisplay(text, imageUrl) {
         img.alt = 'Album art';
         img.style.maxWidth = '100px';
         img.style.marginTop = '10px';
+        img.style.borderRadius = '4px';
         trackElement.appendChild(img);
     }
 }
