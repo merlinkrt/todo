@@ -20,9 +20,9 @@
     </div>
 
     <div id="spotify-auth">
-        <a href="https://accounts.spotify.com/authorize?client_id=60ae37052d3843859a2cb52aab683269&response_type=token&redirect_uri=https://merlinkrt.github.io/todo/&scope=user-read-playback-state%20user-read-currently-playing" 
-           id="spotify-login">
-            Log into Spotify
+        <!-- In index.html, update the login link with these scopes: -->
+        <a href="https://accounts.spotify.com/authorize?client_id=60ae37052d3843859a2cb52aab683269&response_type=token&redirect_uri=https://merlinkrt.github.io/todo/&scope=streaming%20user-read-email%20user-read-private%20user-read-playback-state%20user-modify-playback-state%20user-read-currently-playing">
+        Log into Spotify
         </a>
         <button id="spotify-logout" style="display: none;">Logout from Spotify</button>
     </div>
@@ -30,3 +30,4 @@
     <script src="script.js"></script>
 </body>
 </html>
+
