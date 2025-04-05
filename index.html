@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>To-Do Liste</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css">
     <script src="https://sdk.scdn.co/spotify-player.js"></script>
 
@@ -12,7 +11,7 @@
     <div class="container">
         <h1>📝 My To-Do List</h1>
         <input type="text" id="new-task" placeholder="New Task..." />
-        <button onclick="addTask()">Add</button>
+        <button id="add-task">Add</button>
         <ul id="task-list"></ul>
 
     </div>
@@ -22,9 +21,9 @@
         <p id="current-track">Loading current song...</p>
     </div>
 
-    <a href="https://accounts.spotify.com/authorize?client_id=60ae37052d3843859a2cb52aab683269&response_type=token&redirect_uri=https://merlinkrt.github.io/todo/&scope=user-read-playback-state%20user-read-currently-playing" id="spotify-login">
+    <a href="https://accounts.spotify.com/authorize?client_id=60ae37052d3843859a2cb52aab683269&response_type=token&redirect_uri=https://merlinkrt.github.io/todo/&scope=user-read-playback-state%20user-read-currently-playing%20streaming">
         Log into Spotify
-    </a>
+    </a>    
 
     <script src="script.js"></script>
 </body>
