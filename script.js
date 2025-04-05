@@ -1,3 +1,58 @@
+// Funktion zum Abrufen des Access Tokens aus der URL
+function getAccessToken() {
+    const urlParams = new URLSearchParams(window.location.hash.substr(1)); // Hash-Parameter extrahieren
+    const token = urlParams.get('access_token'); // Holt das Token
+    if (!token) { // Wenn kein Token gefunden wird
+        console.log('Kein Zugangstoken gefunden');
+        return null; // Gibt null zurück, wenn kein Token gefunden wurde
+    }
+    console.log('Zugangstoken erhalten:', token); // Gibt das Token in der Konsole aus
+    return token; // Gibt das Token zurück, wenn es gefunden wurde
+}
+
+// Spotify Web Playback SDK initialisieren
+window.onSpotifyWebPlaybackSDKReady = () => {
+    const token = getAccessToken(); // Hole das Token aus der URL
+
+    if (!token) { // Wenn kein Token vorhanden ist
+        console.log('Kein Zugriffstoken gefunden');
+        return; // Stoppe die Ausführung, wenn kein Token vorhanden ist
+    }
+
+    const player = new Spotify.Player({
+        name: 'Spotify Web Playback SDK Player',
+        getOAuthToken: cb => { cb(token); }, // Verwende das Token im Player
+        volume: 0.5 // Standardlautstärke
+    });
+
+    // Fehlerbehandlung
+    player.on('initialization_error', ({ message }) => {
+        console.error('Initialisierungsfehler:', message);
+    });
+    player.on('authentication_error', ({ message }) => {
+        console.error('Authentifizierungsfehler:', message);
+    });
+    player.on('account_error', ({ message }) => {
+        console.error('Konto Fehler:', message);
+    });
+    player.on('playback_error', ({ message }) => {
+        console.error('Wiedergabefehler:', message);
+    });
+
+    player.on('ready', ({ device_id }) => {
+        console.log('Der Web Playback SDK Player ist bereit!');
+        console.log('Die Device ID lautet:', device_id);
+    });
+
+    player.on('player_state_changed', state => {
+        if (!state) return; // Wenn keine State-Informationen vorhanden sind, nichts tun
+        const currentTrack = state.track_window.current_track; // Hole den aktuellen Track
+        document.getElementById('current-track').textContent = `${currentTrack.name} von ${currentTrack.artists[0].name}`; // Aktualisiere die Anzeige des aktuellen Tracks
+    });
+
+    player.connect(); // Verbinde den Player
+};
+
 // Funktion zum Hinzufügen einer Aufgabe
 function addTask() {
     const input = document.getElementById('new-task');
@@ -23,56 +78,6 @@ function addTask() {
 
     // Clear the input field after adding the task
     input.value = "";
-}
-
-// Spotify Web Playback SDK initialisieren
-window.onSpotifyWebPlaybackSDKReady = () => {
-    const token = getAccessToken(); // Erhalte das Token aus der URL
-    if (!token) {
-        console.log('Kein Zugriffstoken gefunden');
-        return;
-    }
-
-    const player = new Spotify.Player({
-        name: 'Spotify Web Playback SDK Player',
-        getOAuthToken: cb => { cb(token); },
-        volume: 0.5
-    });
-
-    // Fehlerbehandlung
-    player.on('initialization_error', ({ message }) => { console.error(message); });
-    player.on('authentication_error', ({ message }) => { console.error(message); });
-    player.on('account_error', ({ message }) => { console.error(message); });
-    player.on('playback_error', ({ message }) => { console.error(message); });
-
-    player.on('ready', ({ device_id }) => {
-        console.log('The Web Playback SDK is ready!');
-        console.log('The device ID is', device_id);
-    });
-
-    player.on('player_state_changed', state => {
-        if (!state) return;
-
-        const currentTrack = state.track_window.current_track;
-        document.getElementById('current-track').textContent = `${currentTrack.name} von ${currentTrack.artists[0].name}`;
-    });
-
-    player.connect();
-};
-
-// Funktion zum Abrufen des Access Tokens aus der URL
-function getAccessToken() {
-    const urlParams = new URLSearchParams(window.location.hash.substr(1));
-    return urlParams.get('access_token'); // Gibt das Access Token zurück
-}
-
-// Wenn ein Token vorhanden ist, wird es benutzt, um die Spotify API zu authentifizieren
-const token = getAccessToken();
-if (token) {
-    console.log('Zugangstoken erhalten:', token);
-    // Hier kannst du das Token für weitere API-Anfragen verwenden
-} else {
-    console.log('Kein Zugangstoken gefunden. Stellen Sie sicher, dass Sie sich bei Spotify anmelden und den Token erhalten.');
 }
 
 document.getElementById('add-task').addEventListener('click', addTask);
