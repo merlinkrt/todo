@@ -2,10 +2,9 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>To-Do Liste</title>
+    <title>To-Do List with Spotify</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://sdk.scdn.co/spotify-player.js"></script>
-
 </head>
 <body>
     <div class="container">
@@ -13,20 +12,20 @@
         <input type="text" id="new-task" placeholder="New Task..." />
         <button id="add-task">Add</button>
         <ul id="task-list"></ul>
-
     </div>
 
     <div id="spotify-widget">
         <h3>Current Song</h3>
-        <p id="current-track">Loading current song...</p>
+        <p id="current-track" class="loading">Connecting to Spotify...</p>
     </div>
 
-    <a href="https://accounts.spotify.com/authorize?client_id=60ae37052d3843859a2cb52aab683269&response_type=token&redirect_uri=https://merlinkrt.github.io/todo/&scope=user-read-playback-state%20user-read-currently-playing%20streaming%20playlist-read-private%20playlist-read-collaborative%20app-remote-control%20user-library-read" id="spotify-login">
-        Log into Spotify
-    </a>
-    
-    
-    
+    <div id="spotify-auth">
+        <a href="https://accounts.spotify.com/authorize?client_id=60ae37052d3843859a2cb52aab683269&response_type=token&redirect_uri=https://merlinkrt.github.io/todo/&scope=user-read-playback-state%20user-read-currently-playing" 
+           id="spotify-login">
+            Log into Spotify
+        </a>
+        <button id="spotify-logout" style="display: none;">Logout from Spotify</button>
+    </div>
 
     <script src="script.js"></script>
 </body>

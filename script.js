@@ -1,89 +1,153 @@
-// Funktion zum Abrufen des Access Tokens aus der URL
-function getAccessToken() {
-    const urlParams = new URLSearchParams(window.location.hash.substr(1)); // Hash-Parameter extrahieren
-    const token = urlParams.get('access_token'); // Holt das Token
-    if (!token) { // Wenn kein Token gefunden wird
-        console.log('Kein Zugangstoken gefunden');
-        return null; // Gibt null zurück, wenn kein Token gefunden wurde
+document.addEventListener('DOMContentLoaded', function() {
+    // To-Do List functionality
+    document.getElementById('add-task').addEventListener('click', addTask);
+    document.getElementById('new-task').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addTask();
+    });
+
+    // Spotify Integration
+    const token = getAccessToken();
+    if (token) {
+        document.getElementById('spotify-login').style.display = 'none';
+        document.getElementById('spotify-logout').style.display = 'block';
+        initializeSpotifyPlayer(token);
+    } else {
+        updateTrackDisplay('Please log in to see your current song');
     }
-    console.log('Zugangstoken erhalten:', token); // Gibt das Token in der Konsole aus
-    return token; // Gibt das Token zurück, wenn es gefunden wurde
+
+    // Logout functionality
+    document.getElementById('spotify-logout').addEventListener('click', logoutFromSpotify);
+});
+
+function getAccessToken() {
+    const hash = window.location.hash.substr(1);
+    if (!hash) return null;
+    
+    const params = new URLSearchParams(hash);
+    const token = params.get('access_token');
+    
+    // Clear the URL hash after getting the token
+    if (token && window.history.replaceState) {
+        window.history.replaceState(null, null, ' ');
+    }
+    
+    return token;
 }
 
-// Spotify Web Playback SDK initialisieren
-window.onSpotifyWebPlaybackSDKReady = () => {
-    const token = getAccessToken(); // Hole das Token aus der URL
-
-    if (!token) { // Wenn kein Token vorhanden ist
-        console.log('Kein Zugriffstoken gefunden');
-        return; // Stoppe die Ausführung, wenn kein Token vorhanden ist
+function initializeSpotifyPlayer(token) {
+    updateTrackDisplay('Connecting to Spotify...');
+    
+    // Check if Spotify SDK is already loaded
+    if (window.Spotify) {
+        createPlayer(token);
+    } else {
+        // Fallback if SDK doesn't auto-initialize
+        window.onSpotifyWebPlaybackSDKReady = () => createPlayer(token);
+        
+        // Timeout in case SDK fails to load
+        setTimeout(() => {
+            if (!window.Spotify) {
+                console.error('Spotify SDK failed to load');
+                updateTrackDisplay('Error loading Spotify player. Please refresh the page.');
+            }
+        }, 5000);
     }
+}
 
+function createPlayer(token) {
     const player = new Spotify.Player({
-        name: 'Spotify Web Playback SDK Player',
-        getOAuthToken: cb => { cb(token); }, // Verwende das Token im Player
-        volume: 0.5 // Standardlautstärke
+        name: 'To-Do List Player',
+        getOAuthToken: cb => cb(token),
+        volume: 0.5
     });
 
-    // Fehlerbehandlung
-    player.on('initialization_error', ({ message }) => {
-        console.error('Initialisierungsfehler:', message);
+    // Error handling
+    player.addListener('initialization_error', ({ message }) => {
+        console.error('Initialization Error:', message);
+        updateTrackDisplay('Player initialization failed');
     });
-    player.on('authentication_error', ({ message }) => {
-        console.error('Authentifizierungsfehler:', message);
-    });
-    player.on('account_error', ({ message }) => {
-        console.error('Konto Fehler:', message);
-    });
-    player.on('playback_error', ({ message }) => {
-        console.error('Wiedergabefehler:', message);
+    
+    player.addListener('authentication_error', ({ message }) => {
+        console.error('Authentication Error:', message);
+        updateTrackDisplay('Login expired - please log in again');
+        showLoginButton();
     });
 
-    player.on('ready', ({ device_id }) => {
-        console.log('Der Web Playback SDK Player ist bereit!');
-        console.log('Die Device ID lautet:', device_id);
+    player.addListener('player_state_changed', state => {
+        if (!state) {
+            updateTrackDisplay('No song currently playing');
+            return;
+        }
+        
+        const { current_track } = state.track_window;
+        if (current_track) {
+            updateTrackDisplay(
+                `${current_track.name} by ${current_track.artists[0].name}`,
+                current_track.album.images[0]?.url
+            );
+        } else {
+            updateTrackDisplay('No song currently playing');
+        }
     });
 
-    player.on('player_state_changed', state => {
-        if (!state) return; // Wenn keine State-Informationen vorhanden sind, nichts tun
-        const currentTrack = state.track_window.current_track; // Hole den aktuellen Track
-        document.getElementById('current-track').textContent = `${currentTrack.name} von ${currentTrack.artists[0].name}`; // Aktualisiere die Anzeige des aktuellen Tracks
+    player.addListener('ready', ({ device_id }) => {
+        console.log('Ready with Device ID', device_id);
+        updateTrackDisplay('Connected to Spotify - play something!');
     });
 
-    player.connect(); // Verbinde den Player
-};
+    player.connect().then(success => {
+        if (!success) {
+            updateTrackDisplay('Failed to connect to Spotify');
+        }
+    });
+}
 
-// Funktion zum Hinzufügen einer Aufgabe
+function updateTrackDisplay(text, imageUrl) {
+    const trackElement = document.getElementById('current-track');
+    trackElement.textContent = text;
+    trackElement.className = '';
+    
+    // Clear any existing image
+    const existingImg = trackElement.querySelector('img');
+    if (existingImg) existingImg.remove();
+    
+    // Add new image if provided
+    if (imageUrl) {
+        const img = document.createElement('img');
+        img.src = imageUrl;
+        img.alt = 'Album art';
+        trackElement.appendChild(img);
+    }
+}
+
+function showLoginButton() {
+    document.getElementById('spotify-login').style.display = 'block';
+    document.getElementById('spotify-logout').style.display = 'none';
+}
+
+function logoutFromSpotify() {
+    showLoginButton();
+    updateTrackDisplay('Logged out from Spotify');
+}
+
+// To-Do List functions
 function addTask() {
     const input = document.getElementById('new-task');
-    const taskText = input.value.trim(); // Entferne Leerzeichen
-    if (taskText === "") return; // Keine leere Aufgabe hinzufügen
+    const taskText = input.value.trim();
+    if (taskText === "") return;
 
     const li = document.createElement('li');
     li.textContent = taskText;
 
-    // Toggle 'completed' class on click
     li.addEventListener('click', () => {
         li.classList.toggle('completed');
     });
 
-    // Right-click to delete the task
     li.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         li.remove();
     });
 
-    // Append the new task to the list
     document.getElementById('task-list').appendChild(li);
-
-    // Clear the input field after adding the task
     input.value = "";
 }
-
-document.getElementById('add-task').addEventListener('click', addTask);
-
-document.getElementById('new-task').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        addTask();
-    }
-});
