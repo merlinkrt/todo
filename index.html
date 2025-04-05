@@ -5,6 +5,7 @@
     <title>To-Do Liste</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css">
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
 
 </head>
 <body>
@@ -15,6 +16,15 @@
         <ul id="task-list"></ul>
 
     </div>
+
+    <div id="spotify-widget">
+        <h3>Current Song</h3>
+        <p id="current-track">Loading current song...</p>
+    </div>
+
+    <a href="https://accounts.spotify.com/authorize?client_id=YOUR_CLIENT_ID&response_type=token&redirect_uri=https://merlinkrt.github.io/todo-list/&scope=user-read-playback-state%20user-read-currently-playing" id="spotify-login">
+        Log into Spotify
+    </a>
 
     <script src="script.js"></script>
 </body>

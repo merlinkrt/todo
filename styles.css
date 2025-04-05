@@ -10,6 +10,38 @@ body {
     margin: 0;
 }
 
+#spotify-widget {
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 20px;
+    margin-top: 30px;
+    border-radius: 10px;
+    width: 80%;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#current-track {
+    font-size: 18px;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+#spotify-login {
+    margin-top: 20px;
+    display: block;
+    color: #fff;
+    text-decoration: none;
+    background-color: #1DB954;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+#spotify-login:hover {
+    background-color: #1ed760;
+}
+
 .container {
     background: white;
     padding: 30px;
